@@ -1,0 +1,7 @@
+{
+  "name": "Custom3D Tee Studio",
+  "description": "A modern e-commerce platform for customizing 3D t-shirts with image uploads, AI-powered design feedback, and order management.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
