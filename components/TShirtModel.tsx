@@ -26,7 +26,7 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
     [gltf.scene]
   );
 
-  // ✅ Textura (solo existe cuando subes imagen)
+  // ✅ Textura del diseño
   const texture = designUrl ? useLoader(THREE.TextureLoader, designUrl) : null;
   useMemo(() => {
     if (!texture) return;
@@ -46,7 +46,7 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
     [shirtColor]
   );
 
-  // ✅ Usar STATE (no ref) para re-render cuando ya exista el mesh
+  // ✅ Mesh objetivo (torso) - el más “grande”
   const [targetMesh, setTargetMesh] = useState<THREE.Mesh | null>(null);
 
   useLayoutEffect(() => {
@@ -76,8 +76,6 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
     setTargetMesh(best);
   }, [scene, fabricMaterial]);
 
-  const canDecal = !!texture && !!targetMesh && targetMesh instanceof THREE.Mesh;
-
   if (!targetMesh) {
     return (
       <Html center>
@@ -88,31 +86,47 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
     );
   }
 
+  const canDecal =
+    !!texture &&
+    targetMesh instanceof THREE.Mesh &&
+    !!(targetMesh as THREE.Mesh).geometry;
+
   return (
     <Center top>
       <group scale={2.2}>
+        {/* Camiseta completa */}
         <primitive object={scene} />
 
-        {/* ✅ JAMÁS montar Decal sin mesh válido */}
+        {/* ✅ FIX DEFINITIVO: Decal como HIJO de un Mesh real (carrier invisible) */}
         {canDecal && (
-          <Decal
-            mesh={targetMesh}
-            key={designUrl || "no-design"}
-            position={[0, 0.45, 0.15]}
-            rotation={[0, 0, 0]}
-            scale={[0.3 * designScale, 0.3 * designScale, 1]}
-            polygonOffset
-            polygonOffsetFactor={-10}
+          <mesh
+            // usamos la geometría del torso
+            geometry={targetMesh.geometry}
+            // copiamos transform del mesh real
+            position={targetMesh.position}
+            rotation={targetMesh.rotation}
+            scale={targetMesh.scale}
+            // no se ve (solo sirve de “padre mesh” para el decal)
+            visible={false}
           >
-            <meshStandardMaterial
-              map={texture!}
-              transparent
-              alphaTest={0.5}
-              roughness={0.7}
-              metalness={0.05}
-              depthWrite={false}
-            />
-          </Decal>
+            <Decal
+              key={designUrl || "no-design"}
+              position={[0, 0.45, 0.15]}
+              rotation={[0, 0, 0]}
+              scale={[0.3 * designScale, 0.3 * designScale, 1]}
+              polygonOffset
+              polygonOffsetFactor={-10}
+            >
+              <meshStandardMaterial
+                map={texture!}
+                transparent
+                alphaTest={0.5}
+                roughness={0.7}
+                metalness={0.05}
+                depthWrite={false}
+              />
+            </Decal>
+          </mesh>
         )}
       </group>
     </Center>
