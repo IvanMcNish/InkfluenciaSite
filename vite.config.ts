@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     // ✅ clave para GitHub Pages (project pages)
-    base: mode === 'production' ? '/InkfluenciaSite/' : '/',
+    base: '/InkfluenciaSite/',
 
     server: {
       port: 3000,
