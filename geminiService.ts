@@ -45,14 +45,24 @@ export const analyzeDesign = async (base64Image: string) => {
       config: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING, description: "Nombre creativo para el diseño." },
-            description: { type: Type.STRING, description: "Descripción de marketing de 2 frases." },
-            suggestion: { type: Type.STRING, description: "Sugerencia de estilo." },
-          },
-          required: ["name", "description", "suggestion"],
-        },
+  type: Type.OBJECT,
+  properties: {
+    name: {
+      type: Type.STRING,
+      description: "Nombre creativo para el diseño.",
+    },
+    description: {
+      type: Type.STRING,
+      description: "Descripción de marketing de 2 frases.",
+    },
+    suggestion: {
+      type: Type.STRING,
+      description: "Sugerencia de estilo.",
+    },
+  },
+  required: ["name", "description", "suggestion"],
+},
+
       },
     });
 
