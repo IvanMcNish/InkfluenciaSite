@@ -1,6 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useLoader } from "@react-three/fiber";
-import { Decal, Html, useGLTF } from "@react-three/drei";
+import { Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { TShirtColor } from "../types";
 
@@ -19,10 +19,16 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
   designScale = 0.5,
 }) => {
   const gltf = useGLTF(MODEL_URL) as any;
-
-  // ✅ ojo: usamos nodes del GLTF en vez de clonar scene + primitive
   const nodes = gltf.nodes || {};
-  const materials = gltf.materials || {};
+
+  // ✅ DEBUG: lista nombres de meshes (1 vez)
+  useEffect(() => {
+    const names: string[] = [];
+    gltf.scene?.traverse?.((o: any) => {
+      if (o?.isMesh) names.push(o.name || "(sin nombre)");
+    });
+    console.log("Meshes del GLB:", names);
+  }, [gltf.scene]);
 
   const texture = designUrl ? useLoader(THREE.TextureLoader, designUrl) : null;
   useMemo(() => {
@@ -35,51 +41,22 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
 
   const shirtColor = color === TShirtColor.WHITE ? "#f9fafb" : "#0a0a0a";
 
-  // ✅ encontrar el mesh “torso” (el más grande)
-  const torso = useMemo(() => {
-    let best: any = null;
-    let bestVol = -Infinity;
+  const hasAnyMesh = Object.values(nodes).some((n: any) => n?.isMesh && n.geometry);
 
-    Object.values(nodes).forEach((n: any) => {
-      if (!n?.isMesh || !n.geometry) return;
-
-      n.geometry.computeBoundingBox?.();
-      const box = n.geometry.boundingBox;
-      if (!box) return;
-
-      const s = new THREE.Vector3();
-      box.getSize(s);
-      const vol = s.x * s.y * s.z;
-      if (vol > bestVol) {
-        bestVol = vol;
-        best = n;
-      }
-    });
-
-    return best as THREE.Mesh | null;
-  }, [nodes]);
-
-  // si no hay torso aún, mostramos loading
-  if (!torso) {
+  if (!hasAnyMesh) {
     return (
       <Html center>
         <div className="bg-white/80 p-4 rounded-xl shadow border">
-          Cargando mallas…
+          No se encontraron mallas en el GLB…
         </div>
       </Html>
     );
   }
 
-  const canDecal = !!texture;
-
   return (
     <group scale={2.2}>
-      {/* ✅ Renderizamos todas las mallas explícitamente */}
       {Object.entries(nodes).map(([key, n]: any) => {
         if (!n?.isMesh || !n.geometry) return null;
-
-        const isTorso = n === torso;
-
         return (
           <mesh
             key={key}
@@ -95,26 +72,6 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
               roughness={0.85}
               metalness={0.05}
             />
-
-            {/* ✅ Decal como hijo del MESH real (no necesita mesh prop) */}
-            {isTorso && canDecal && (
-              <Decal
-                position={[0, 0.15, 0.05]}
-                rotation={[0, 0, 0]}
-                scale={[0.35 * designScale, 0.35 * designScale, 1]}
-                polygonOffset
-                polygonOffsetFactor={-10}
-              >
-                <meshStandardMaterial
-                  map={texture!}
-                  transparent
-                  alphaTest={0.5}
-                  roughness={0.6}
-                  metalness={0.05}
-                  depthWrite={false}
-                />
-              </Decal>
-            )}
           </mesh>
         );
       })}
@@ -123,12 +80,4 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
 };
 
 useGLTF.preload(MODEL_URL);
-useLayoutEffect(() => {
-  const names: string[] = [];
-  scene.traverse((o: any) => {
-    if (o?.isMesh) names.push(o.name || "(sin nombre)");
-  });
-  console.log("Meshes del GLB:", names);
-}, [scene]);
-
 export default TShirtModel;
