@@ -1,12 +1,13 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import {
   OrbitControls,
   Environment,
   ContactShadows,
-  PerspectiveCamera,
   Float,
   Html,
+  Bounds,
+  useBounds,
 } from "@react-three/drei";
 import { TShirtColor } from "../types";
 import TShirtModel from "./TShirtModel";
@@ -17,16 +18,23 @@ interface TShirtCanvasProps {
   designScale?: number;
 }
 
+// ✅ Fuerza el encuadre al montar / cuando cambie diseño o color
+function FitOnLoad({ deps }: { deps: any[] }) {
+  const bounds = useBounds();
+  useEffect(() => {
+    // pequeño delay para asegurar que las mallas ya estén en escena
+    const t = setTimeout(() => {
+      bounds.refresh().fit();
+    }, 50);
+    return () => clearTimeout(t);
+  }, deps); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
 const TShirtCanvas: React.FC<TShirtCanvasProps> = (props) => {
   return (
     <div className="w-full h-[500px] md:h-[700px] rounded-[4rem] overflow-hidden">
-      <Canvas
-        shadows
-        dpr={[1, 2]}
-        gl={{ antialias: true, alpha: true }}
-      >
-        <PerspectiveCamera makeDefault position={[0, 0.5, 5]} fov={35} />
-
+      <Canvas shadows dpr={[1, 2]} gl={{ antialias: true, alpha: true }}>
         <ambientLight intensity={0.6} />
         <spotLight
           position={[10, 15, 10]}
@@ -46,11 +54,17 @@ const TShirtCanvas: React.FC<TShirtCanvasProps> = (props) => {
             </Html>
           }
         >
-          <Float speed={1.2} rotationIntensity={0.2} floatIntensity={0.3}>
-            <TShirtModel {...props} />
-          </Float>
-
           <Environment preset="city" />
+
+          {/* ✅ Bounds centra y encuadra automáticamente */}
+          <Bounds fit clip observe margin={1.15}>
+            <FitOnLoad deps={[props.color, props.designUrl, props.designScale]} />
+
+            <Float speed={1.2} rotationIntensity={0.2} floatIntensity={0.3}>
+              <TShirtModel {...props} />
+            </Float>
+          </Bounds>
+
           <ContactShadows
             position={[0, -1.8, 0]}
             opacity={0.3}
@@ -61,9 +75,11 @@ const TShirtCanvas: React.FC<TShirtCanvasProps> = (props) => {
         </Suspense>
 
         <OrbitControls
+          makeDefault
           enableZoom={false}
           minPolarAngle={Math.PI / 4}
           maxPolarAngle={Math.PI / 1.6}
+          enableDamping
           dampingFactor={0.05}
         />
       </Canvas>
