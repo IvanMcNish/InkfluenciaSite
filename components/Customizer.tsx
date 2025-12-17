@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { Upload, ShoppingCart, Info, Wand2, Loader2, Check } from 'lucide-react';
-import { TShirtCanvas } from './TShirtCanvas';
+import TShirtCanvas from './TShirtCanvas';
 import { TShirtColor, DesignState } from '../types';
 import { analyzeDesign } from '../geminiService';
 
