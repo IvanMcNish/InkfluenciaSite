@@ -1,4 +1,4 @@
-import React, { useMemo, useLayoutEffect, useState } from "react";
+import React, { useMemo, useLayoutEffect, useRef } from "react";
 import { useLoader } from "@react-three/fiber";
 import { Center, Decal, Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -20,23 +20,23 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
 }) => {
   const gltf = useGLTF(MODEL_URL) as any;
 
-  // 🔒 CLONE para no mutar el cache de drei
+  // 🔒 Clonar para no mutar el cache
   const scene = useMemo(
     () => gltf.scene.clone(true) as THREE.Object3D,
     [gltf.scene]
   );
 
-  const texture = designUrl
-    ? useLoader(THREE.TextureLoader, designUrl)
-    : null;
+  // ✅ Textura
+  const texture = designUrl ? useLoader(THREE.TextureLoader, designUrl) : null;
 
-  if (texture) {
+  useMemo(() => {
+    if (!texture) return;
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 16;
-  }
+    texture.needsUpdate = true;
+  }, [texture]);
 
   const shirtColor = color === TShirtColor.WHITE ? "#f9fafb" : "#0a0a0a";
-
   const fabricMaterial = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
@@ -47,7 +47,8 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
     [shirtColor]
   );
 
-  const [targetMesh, setTargetMesh] = useState<THREE.Mesh | null>(null);
+  // ✅ Ref estable al mesh destino
+  const targetMeshRef = useRef<THREE.Mesh | null>(null);
 
   useLayoutEffect(() => {
     let best: THREE.Mesh | null = null;
@@ -67,36 +68,45 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
           const vol = s.x * s.y * s.z;
           if (vol > bestVol) {
             bestVol = vol;
-            best = obj;
+            best = obj as THREE.Mesh;
           }
         }
       }
     });
 
-    setTargetMesh(best);
+    targetMeshRef.current = best;
   }, [scene, fabricMaterial]);
 
+  const targetMesh = targetMeshRef.current;
+
+  // ✅ UI de carga solo si NO hay mesh destino aún
   if (!targetMesh) {
     return (
       <Html center>
         <div className="bg-white/80 p-4 rounded-xl shadow border">
-          Cargando modelo…
+          Cargando mallas del modelo…
         </div>
       </Html>
     );
   }
 
+  // ✅ Guardas: decal solo si hay textura y el mesh es Mesh real
+  const canDecal =
+    !!texture && targetMesh instanceof THREE.Mesh && !!targetMesh.geometry;
+
   return (
     <Center top>
       <group scale={2.2}>
-        {/* Camiseta completa */}
         <primitive object={scene} />
 
-        {/* Decal en el torso */}
-        {texture && (
+        {canDecal && (
           <Decal
+            // 🔥 CLAVE: mesh siempre válido
             mesh={targetMesh}
+            // Key: fuerza remount cuando cambias imagen (evita estados viejos)
+            key={designUrl || "no-design"}
             position={[0, 0.45, 0.15]}
+            rotation={[0, 0, 0]}
             scale={[0.3 * designScale, 0.3 * designScale, 1]}
             polygonOffset
             polygonOffsetFactor={-10}
