@@ -123,5 +123,12 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
 };
 
 useGLTF.preload(MODEL_URL);
+useLayoutEffect(() => {
+  const names: string[] = [];
+  scene.traverse((o: any) => {
+    if (o?.isMesh) names.push(o.name || "(sin nombre)");
+  });
+  console.log("Meshes del GLB:", names);
+}, [scene]);
 
 export default TShirtModel;
