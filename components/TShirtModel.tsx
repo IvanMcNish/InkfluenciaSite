@@ -98,36 +98,50 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
         <primitive object={scene} />
 
         {/* ✅ FIX DEFINITIVO: Decal como HIJO de un Mesh real (carrier invisible) */}
-        {canDecal && (
-          <mesh
-            // usamos la geometría del torso
-            geometry={targetMesh.geometry}
-            // copiamos transform del mesh real
-            position={targetMesh.position}
-            rotation={targetMesh.rotation}
-            scale={targetMesh.scale}
-            // no se ve (solo sirve de “padre mesh” para el decal)
-            visible={false}
-          >
-            <Decal
-              key={designUrl || "no-design"}
-              position={[0, 0.45, 0.15]}
-              rotation={[0, 0, 0]}
-              scale={[0.3 * designScale, 0.3 * designScale, 1]}
-              polygonOffset
-              polygonOffsetFactor={-10}
-            >
-              <meshStandardMaterial
-                map={texture!}
-                transparent
-                alphaTest={0.5}
-                roughness={0.7}
-                metalness={0.05}
-                depthWrite={false}
-              />
-            </Decal>
-          </mesh>
-        )}
+     {canDecal && (
+  <mesh
+    geometry={targetMesh.geometry}
+    // ⚠️ NO uses targetMesh.position directo (son referencias mutables)
+    position={[
+      targetMesh.position.x,
+      targetMesh.position.y,
+      targetMesh.position.z,
+    ]}
+    rotation={[
+      targetMesh.rotation.x,
+      targetMesh.rotation.y,
+      targetMesh.rotation.z,
+    ]}
+    scale={[
+      targetMesh.scale.x,
+      targetMesh.scale.y,
+      targetMesh.scale.z,
+    ]}
+    // ✅ deja el mesh visible para que el decal se dibuje
+  >
+    {/* ✅ “material invisible”: el mesh NO se ve, pero sus hijos sí */}
+    <meshBasicMaterial transparent opacity={0} colorWrite={false} />
+
+    <Decal
+      key={designUrl || "no-design"}
+      position={[0, 0.45, 0.15]}
+      rotation={[0, 0, 0]}
+      scale={[0.3 * designScale, 0.3 * designScale, 1]}
+      polygonOffset
+      polygonOffsetFactor={-10}
+    >
+      <meshStandardMaterial
+        map={texture!}
+        transparent
+        alphaTest={0.5}
+        roughness={0.7}
+        metalness={0.05}
+        depthWrite={false}
+      />
+    </Decal>
+  </mesh>
+)}
+
       </group>
     </Center>
   );
