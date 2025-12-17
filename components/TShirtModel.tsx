@@ -89,7 +89,7 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
 
             const chest = center.clone();
             chest.y += size.y * 0.15; // arriba/abajo
-            chest.z += size.z * 0.35; // hacia afuera
+            chest.z += size.z * 0.65; // hacia afuera
 
             decalPos = [chest.x, chest.y, chest.z];
           }
