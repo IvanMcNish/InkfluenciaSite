@@ -10,6 +10,7 @@ interface TShirtProps {
   designScale?: number;
 }
 
+
 const MODEL_URL =
   "https://raw.githubusercontent.com/IvanMcNish/camiseta/main/t_shirt.glb";
 
