@@ -116,5 +116,4 @@ export const TShirtModel: React.FC<TShirtProps> = ({
 try {
   useGLTF.preload(MODEL_URL);
 } catch (e) {}
-export default TShirtCanvas;
 
