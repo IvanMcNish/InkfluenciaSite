@@ -1,5 +1,5 @@
 import React, { useMemo, useLayoutEffect, useState } from "react";
-import { useThree, useLoader } from "@react-three/fiber";
+import { useLoader } from "@react-three/fiber";
 import { Center, Decal, Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { TShirtColor } from "../types";
@@ -19,25 +19,24 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
   designScale = 0.5,
 }) => {
   const gltf = useGLTF(MODEL_URL) as any;
-  const { camera } = useThree();
 
-  // ✅ clone para no mutar cache
   const scene = useMemo(
     () => gltf.scene.clone(true) as THREE.Object3D,
     [gltf.scene]
   );
 
-  // ✅ textura
   const texture = designUrl ? useLoader(THREE.TextureLoader, designUrl) : null;
+
   useMemo(() => {
     if (!texture) return;
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 16;
-    texture.flipY = false; // 🔥 muy importante con GLTF + decals
+    texture.flipY = false; // importante para glTF
     texture.needsUpdate = true;
   }, [texture]);
 
   const shirtColor = color === TShirtColor.WHITE ? "#f9fafb" : "#0a0a0a";
+
   const fabricMaterial = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
@@ -49,10 +48,8 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
   );
 
   const [targetMesh, setTargetMesh] = useState<THREE.Mesh | null>(null);
-  const [decalPos, setDecalPos] = useState<THREE.Vector3 | null>(null);
-  const [decalNormal, setDecalNormal] = useState<THREE.Vector3 | null>(null);
+  const [decalLocalPos, setDecalLocalPos] = useState<THREE.Vector3 | null>(null);
 
-  // 1) aplicar material y escoger mesh torso (más grande)
   useLayoutEffect(() => {
     let best: THREE.Mesh | null = null;
     let bestVol = -Infinity;
@@ -80,36 +77,26 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
     setTargetMesh(best);
   }, [scene, fabricMaterial]);
 
-  // 2) cuando hay textura + mesh, raycast al centro de la camiseta
+  // ✅ Posición del decal en coordenadas LOCALES del torso (bbox)
   useLayoutEffect(() => {
     if (!texture || !targetMesh) return;
 
-    // Queremos “pegar” en el centro visible (pecho)
-    // Tomamos un punto al frente de la cámara hacia el objeto:
-    const raycaster = new THREE.Raycaster();
+    targetMesh.geometry.computeBoundingBox();
+    const box = targetMesh.geometry.boundingBox;
+    if (!box) return;
 
-    // NDC 0,0 = centro de pantalla
-    raycaster.setFromCamera(new THREE.Vector2(0, 0.05), camera);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
 
-    const hits = raycaster.intersectObject(targetMesh, true);
-    if (hits.length) {
-      const hit = hits[0];
+    // “pecho”: centro + un poco hacia arriba y un poco hacia afuera (Z)
+    const chest = center.clone();
+    chest.y += size.y * 0.15;
+    chest.z += size.z * 0.35;
 
-      setDecalPos(hit.point.clone());
-
-      // normal del punto (para orientar el decal)
-      const n = hit.face?.normal?.clone() ?? new THREE.Vector3(0, 0, 1);
-      n.transformDirection(targetMesh.matrixWorld);
-      setDecalNormal(n.normalize());
-    } else {
-      // fallback (por si no pega): centro del mesh
-      const box = new THREE.Box3().setFromObject(targetMesh);
-      const center = new THREE.Vector3();
-      box.getCenter(center);
-      setDecalPos(center);
-      setDecalNormal(new THREE.Vector3(0, 0, 1));
-    }
-  }, [texture, targetMesh, camera]);
+    setDecalLocalPos(chest);
+  }, [texture, targetMesh]);
 
   if (!targetMesh) {
     return (
@@ -121,19 +108,7 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
     );
   }
 
-  const canDecal = !!texture && !!decalPos && !!decalNormal;
-
-  // Rotación: alinear decal con la normal
-  const decalRotation = useMemo(() => {
-    if (!decalNormal) return [0, 0, 0] as [number, number, number];
-
-    const quat = new THREE.Quaternion().setFromUnitVectors(
-      new THREE.Vector3(0, 0, 1),
-      decalNormal
-    );
-    const euler = new THREE.Euler().setFromQuaternion(quat);
-    return [euler.x, euler.y, euler.z] as [number, number, number];
-  }, [decalNormal]);
+  const canDecal = !!texture && !!decalLocalPos && targetMesh instanceof THREE.Mesh;
 
   return (
     <Center top>
@@ -142,11 +117,11 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
 
         {canDecal && (
           <Decal
-            // ✅ Ahora el Decal es hijo del mesh real, no depende de “position hardcoded”
+            // ✅ importante: Decal aplicado al mesh real
             mesh={targetMesh}
             key={designUrl || "no-design"}
-            position={[decalPos!.x, decalPos!.y, decalPos!.z]}
-            rotation={decalRotation}
+            position={[decalLocalPos!.x, decalLocalPos!.y, decalLocalPos!.z]}
+            rotation={[0, 0, 0]}
             scale={[0.35 * designScale, 0.35 * designScale, 1]}
             polygonOffset
             polygonOffsetFactor={-10}
@@ -154,6 +129,7 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
             <meshStandardMaterial
               map={texture!}
               transparent
+              alphaTest={0.5}
               roughness={0.6}
               metalness={0.05}
               depthWrite={false}
