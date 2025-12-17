@@ -14,7 +14,7 @@ interface TShirtProps {
 const MODEL_URL =
   "https://raw.githubusercontent.com/IvanMcNish/camiseta/main/t_shirt.glb";
 
-export const TShirtModel: React.FC<TShirtProps> = ({
+export const TShirtCanvas: React.FC<TShirtProps> = ({
   color,
   designUrl,
   designScale = 0.5,
